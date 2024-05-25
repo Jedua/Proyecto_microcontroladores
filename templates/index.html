@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visualización y Guardado de Mediciones</title>
+</head>
+<body>
+
+<h1>Mediciones Python</h1>
+
+<!-- Elemento de tabla para mostrar las mediciones -->
+<table id="tablaMediciones">
+  <thead>
+    <tr>
+      <th>Distancia 1 (cm)</th>
+      <th>Distancia 2 (cm)</th>
+      <th>Distancia 3 (cm)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- Las filas de la tabla se llenarán dinámicamente aquí -->
+  </tbody>
+</table>
+
+<button onclick="iniciarMediciones()">Iniciar Mediciones</button>
+<button onclick="detenerMediciones()">Detener Mediciones</button>
+
+<!-- Nuevos elementos de entrada para tiempo total y intervalo -->
+<label for="tiempoTotal">Tiempo Total (segundos):</label>
+<input type="number" id="tiempoTotal" name="tiempoTotal" required><br>
+
+<label for="intervaloMedicion">Intervalo de Medición (ms):</label>
+<input type="number" id="intervaloMedicion" name="intervaloMedicion" required><br>
+
+<!-- Nuevo elemento para mostrar el array debajo de los botones -->
+<label id="labelArray"></label>
+
+<form id="formularioMediciones" action="/guardarmediciones" method="post">
+  <input type="hidden" name="medicionesArray" id="inputMedicionesArray">
+  <button type="button" onclick="enviarArray()">Enviar a guardarmediciones.html</button>
+</form>
+
+<script>
+  let medicionesArray = []; // Arreglo para almacenar mediciones
+  let intervalID; // Identificador del intervalo
+
+  function obtenerMediciones() {
+    // Realizar solicitud AJAX a la ruta /mediciones
+    fetch('http://192.168.172.100/mediciones', {
+      method: 'GET',
+      mode: 'cors', // Añadir esta línea
+    })
+      .then(response => response.json())
+      .then(data => {
+        // Actualizar el contenido de la tabla con las nuevas mediciones
+        const tablaMediciones = document.getElementById('tablaMediciones').getElementsByTagName('tbody')[0];
+        const nuevaFila = tablaMediciones.insertRow(-1); // Insertar al final de la tabla
+
+        const celdaDistancia1 = nuevaFila.insertCell(0);
+        const celdaDistancia2 = nuevaFila.insertCell(1);
+        const celdaDistancia3 = nuevaFila.insertCell(2);
+
+        celdaDistancia1.innerHTML = data.distancia1;
+        celdaDistancia2.innerHTML = data.distancia2;
+        celdaDistancia3.innerHTML = data.distancia3;
+
+        // Guardar las mediciones
+        guardarMediciones(data.distancia1, data.distancia2, data.distancia3);
+      })
+      .catch(error => {
+        console.error('Error al obtener mediciones:', error);
+      });
+  }
+
+  function iniciarMediciones() {
+    medicionesArray = []; // Reiniciar el arreglo al iniciar nuevas mediciones
+    clearInterval(intervalID); // Limpiar el intervalo existente (si hay alguno)
+
+    // Reiniciar la tabla al pulsar el botón de inicio
+    const tablaMediciones = document.getElementById('tablaMediciones').getElementsByTagName('tbody')[0];
+    tablaMediciones.innerHTML = '';
+
+    // Obtener valores de entrada del usuario
+    const tiempoTotal = document.getElementById('tiempoTotal').value;
+    const intervaloMedicion = document.getElementById('intervaloMedicion').value;
+
+    // Validar que los valores sean numéricos
+    if (isNaN(tiempoTotal) || isNaN(intervaloMedicion)) {
+      alert('Por favor, ingrese valores numéricos válidos.');
+      return;
+    }
+
+    // Convertir a números
+    const tiempoTotalNum = parseInt(tiempoTotal, 10);
+    const intervaloMedicionNum = parseInt(intervaloMedicion, 10);
+
+    // Establecer un nuevo intervalo para leer las mediciones en el intervalo especificado
+    intervalID = setInterval(function () {
+      obtenerMediciones();
+    }, intervaloMedicionNum);
+
+    // Detener las mediciones después del tiempo total especificado
+    setTimeout(function () {
+      detenerMediciones();
+      mostrarArray();
+    }, tiempoTotalNum * 1000);
+  }
+
+  function detenerMediciones() {
+    clearInterval(intervalID);
+  }
+
+  function guardarMediciones(distancia1, distancia2, distancia3) {
+    // Añadir las mediciones al arreglo
+    medicionesArray.push({
+      distancia1: distancia1,
+      distancia2: distancia2,
+      distancia3: distancia3
+    });
+  }
+
+  function mostrarArray() {
+    // Mostrar el array completo al final de la tabla
+    const tablaMediciones = document.getElementById('tablaMediciones').getElementsByTagName('tbody')[0];
+    const nuevaFila = tablaMediciones.insertRow(-1);
+
+    const celdaArray = nuevaFila.insertCell(0);
+    celdaArray.colSpan = 3; // Ocupar todas las columnas
+    celdaArray.innerHTML = '<strong>Array Completo:</strong> ' + JSON.stringify(medicionesArray);
+  }
+
+  function enviarArray() {
+    // Obtener el formulario y el campo de entrada
+    const formulario = document.getElementById('formularioMediciones');
+    const inputMedicionesArray = document.getElementById('inputMedicionesArray');
+
+    // Establecer el valor del campo de entrada con el array convertido a cadena JSON
+    inputMedicionesArray.value = JSON.stringify(medicionesArray);
+
+    // Mostrar el array en la consola antes de enviar el formulario
+    console.log('Array a enviar:', medicionesArray);
+
+    // Enviar el formulario
+    formulario.submit();
+}
+
+  document.addEventListener('DOMContentLoaded', obtenerMediciones);
+</script>
+
+</body>
+</html>
